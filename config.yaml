@@ -1,0 +1,12 @@
+server:
+    isProd: false
+    port: 8585
+    pg:
+        user: "db04_user"
+        password: "5seKJBmfJzHKh;i;"
+        host: "155.212.130.21"
+        port: 5432
+        database: "db04"
+        sllmode: "disable"
+
+
