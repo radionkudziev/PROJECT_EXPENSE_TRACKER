@@ -16,7 +16,7 @@ type ConnectionData struct {
 	Host     string `yaml:"host"`
 	Port     uint16 `yaml:"port"`
 	DBName   string `yaml:"database"`
-	SSLMode  string `yaml:"sslmode"` // исправлено с sllmode на sslmode
+	SSLMode  string `yaml:"sslmode"`
 }
 
 type DB struct {
@@ -28,7 +28,6 @@ func Connect(ctx context.Context, cfg *ConnectionData) (*DB, error) {
 		return nil, errors.New("connection data is empty")
 	}
 
-	// Исправлен формат строки подключения
 	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
 		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName, cfg.SSLMode)
 
@@ -50,7 +49,7 @@ func Connect(ctx context.Context, cfg *ConnectionData) (*DB, error) {
 }
 
 func (db *DB) Close() {
-	// Исправлено условие
+
 	if db == nil || db.pool == nil {
 		return
 	}

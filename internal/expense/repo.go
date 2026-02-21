@@ -2,56 +2,40 @@ package expense
 
 import (
 	"context"
-	"database/sql"
-	"time"
-
-	"search-job/pkg/postgres" // ваш пакет с БД
+	"search-job/internal/models"
+	"search-job/pkg/postgres"
 )
-
-type Repository interface {
-	Create(ctx context.Context, amount float64, currency string, occurredAt time.Time, comment *string) error
-	GetAll(ctx context.Context) ([]Expense, error)
-	GetByID(ctx context.Context, id int64) (*Expense, error)
-	Update(ctx context.Context, id int64, amount *float64, currency *string, occurredAt *time.Time, comment *string) error
-	SoftDelete(ctx context.Context, id int64) error
-}
 
 type Repo struct {
 	db *postgres.DB
 }
 
-func NewRepo(db *postgres.DB) *Repo { // ожидает *postgres.DB
+func NewRepo(db *postgres.DB) *Repo {
 	return &Repo{db: db}
 }
 
-func (r *Repo) Create(ctx context.Context, amount float64, currency string, occurredAt time.Time, comment *string) error {
+func (r *Repo) Create(ctx context.Context, expense *models.Expense) error {
 	query := `
-		INSERT INTO expenses (
-			amount,
-			currency,
-			occurred_at,
-			comment,
-			created_at,
-			updated_at
-		)
-		VALUES ($1, $2, $3, $4, NOW(), NOW())
+		INSERT INTO expenses (amount, currency, occurred_at, comment, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id
 	`
 
-	_, err := r.db.Exec(ctx, query, amount, currency, occurredAt, comment)
-	return err
+	return r.db.QueryRow(ctx, query,
+		expense.Amount,
+		expense.Currency,
+		expense.OccurredAt,
+		expense.Comment,
+		expense.CreatedAt,
+		expense.UpdatedAt,
+	).Scan(&expense.ID)
 }
 
-func (r *Repo) GetAll(ctx context.Context) ([]Expense, error) {
+func (r *Repo) GetAll(ctx context.Context) ([]models.Expense, error) {
 	query := `
-		SELECT
-			id,
-			amount,
-			currency,
-			occurred_at,
-			comment,
-			created_at,
-			updated_at
+		SELECT id, amount, currency, occurred_at, comment, created_at, updated_at
 		FROM expenses
+		WHERE deleted_at IS NULL
 		ORDER BY occurred_at DESC
 	`
 
@@ -61,9 +45,9 @@ func (r *Repo) GetAll(ctx context.Context) ([]Expense, error) {
 	}
 	defer rows.Close()
 
-	var expenses []Expense
+	var expenses []models.Expense
 	for rows.Next() {
-		var e Expense
+		var e models.Expense
 		err := rows.Scan(
 			&e.ID,
 			&e.Amount,
@@ -79,28 +63,17 @@ func (r *Repo) GetAll(ctx context.Context) ([]Expense, error) {
 		expenses = append(expenses, e)
 	}
 
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return expenses, nil
+	return expenses, rows.Err()
 }
 
-func (r *Repo) GetByID(ctx context.Context, id int64) (*Expense, error) {
+func (r *Repo) GetByID(ctx context.Context, id int64) (*models.Expense, error) {
 	query := `
-		SELECT
-			id,
-			amount,
-			currency,
-			occurred_at,
-			comment,
-			created_at,
-			updated_at
+		SELECT id, amount, currency, occurred_at, comment, created_at, updated_at
 		FROM expenses
-		WHERE id = $1
+		WHERE id = $1 AND deleted_at IS NULL
 	`
 
-	var e Expense
+	var e models.Expense
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&e.ID,
 		&e.Amount,
@@ -117,40 +90,31 @@ func (r *Repo) GetByID(ctx context.Context, id int64) (*Expense, error) {
 	return &e, nil
 }
 
-func (r *Repo) Update(ctx context.Context, id int64, amount *float64, currency *string, occurredAt *time.Time, comment *string) error {
+func (r *Repo) Update(ctx context.Context, expense *models.Expense) error {
 	query := `
-		UPDATE expenses 
-		SET 
-			amount = COALESCE($1, amount),
-			currency = COALESCE($2, currency),
-			occurred_at = COALESCE($3, occurred_at),
-			comment = COALESCE($4, comment),
-			updated_at = NOW()
-		WHERE id = $5
+		UPDATE expenses
+		SET amount = $1, currency = $2, occurred_at = $3, comment = $4, updated_at = $5
+		WHERE id = $6 AND deleted_at IS NULL
 	`
 
-	_, err := r.db.Exec(ctx, query, amount, currency, occurredAt, comment, id)
+	_, err := r.db.Exec(ctx, query,
+		expense.Amount,
+		expense.Currency,
+		expense.OccurredAt,
+		expense.Comment,
+		expense.UpdatedAt,
+		expense.ID,
+	)
 	return err
 }
 
 func (r *Repo) SoftDelete(ctx context.Context, id int64) error {
 	query := `
-		UPDATE expenses 
-		SET deleted_at = NOW(),
-			updated_at = NOW()
+		UPDATE expenses
+		SET deleted_at = NOW(), updated_at = NOW()
 		WHERE id = $1 AND deleted_at IS NULL
 	`
 
-	result, err := r.db.Exec(ctx, query, id)
-	if err != nil {
-		return err
-	}
-
-	// Проверяем, что запись была найдена и обновлена
-	rowsAffected := result.RowsAffected()
-	if rowsAffected == 0 {
-		return sql.ErrNoRows
-	}
-
-	return nil
+	_, err := r.db.Exec(ctx, query, id)
+	return err
 }

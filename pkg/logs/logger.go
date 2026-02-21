@@ -3,52 +3,26 @@ package logs
 import (
 	"os"
 
-	"github.com/labstack/gommon/log"
+	"github.com/labstack/gommon/log" // исправлено с lbastack на labstack
 )
 
-type Logger interface {
-	Infof(format string, args ...interface{})
-	Errorf(format string, args ...interface{})
-	Warnf(format string, args ...interface{})
-	Debugf(format string, args ...interface{})
-	Fatal(args ...interface{})
-}
-
-func NewLogger(writeToFile bool, level string) *log.Logger {
-	logger := log.New("expense-tracker")
-
+func NewLogger(writeToFile bool) *log.Logger {
+	// Настраиваем логгер для записи в файл
+	logger := log.New("dict")
 	if writeToFile {
-		// Создаем/открываем файл для записи логов
-		logFile, err := os.OpenFile("logs/app.log",
-			os.O_APPEND|os.O_CREATE|os.O_WRONLY,
-			0666)
+		// Создаем файл для записи логов
+		logFile, err := os.OpenFile("app.log", os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0666)
 		if err != nil {
-			// Если не можем создать файл, логируем в консоль
-			logger.Warnf("Failed to open log file: %v", err)
-		} else {
-			logger.SetOutput(logFile)
+			panic(err)
 		}
+		logger.SetOutput(logFile)
 	}
 
-	// Устанавливаем уровень логирования
-	switch level {
-	case "debug":
-		logger.SetLevel(log.DEBUG)
-	case "warn":
-		logger.SetLevel(log.WARN)
-	case "error":
-		logger.SetLevel(log.ERROR)
-	default:
-		logger.SetLevel(log.INFO)
-	}
+	logger.SetLevel(log.INFO) // Уровень логирования: DEBUG, INFO, WARN, ERROR
+	logger.SetHeader("${time_rfc3339} ${level} ${short_file}:${line} ${message}")
 
-	// Настраиваем формат логов
-	logger.SetHeader(`{"time":"${time_rfc3339}","level":"${level}","file":"${short_file}","line":"${line}","message":"${message}"}` + "\n")
+	// Пример логирования
+	logger.Infof("Application started")
 
 	return logger
-}
-
-// Вспомогательная функция для создания логгера с дефолтными настройками
-func NewDefaultLogger() *log.Logger {
-	return NewLogger(false, "info")
 }

@@ -22,13 +22,12 @@ func NewConfig() (*Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("./")
-	viper.AddConfigPath("./configs/") // добавим ещё один путь
+	viper.AddConfigPath("./configs/")
 
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("error reading config file: %w", err)
 	}
 
-	// Проверка обязательных полей
 	port := viper.GetUint16("server.port")
 	if port == 0 {
 		return nil, fmt.Errorf("server.port is required in config")
@@ -49,7 +48,6 @@ func NewConfig() (*Config, error) {
 		},
 	}
 
-	// Проверка PostgreSQL конфига
 	if cfg.Postgres.User == "" || cfg.Postgres.Host == "" || cfg.Postgres.DBName == "" {
 		return nil, fmt.Errorf("incomplete postgres configuration")
 	}
