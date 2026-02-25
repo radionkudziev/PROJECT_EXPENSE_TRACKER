@@ -64,12 +64,10 @@ func (s *Service) GetExpenses(c echo.Context) error {
 		})
 	}
 
-	// Парсим параметры
 	params := expense.GetExpensesParams{
 		UserID: userID,
 	}
 
-	// Пагинация
 	page, _ := strconv.Atoi(c.QueryParam("page"))
 	if page < 1 {
 		page = 1

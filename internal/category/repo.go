@@ -30,7 +30,6 @@ func (r *Repo) Create(ctx context.Context, category *models.Category) error {
 }
 
 func (r *Repo) GetAll(ctx context.Context, userID int64, limit, offset int, search string) ([]models.Category, int, error) {
-	// Подсчет общего количества
 	countQuery := `
 		SELECT COUNT(*) 
 		FROM categories 
@@ -51,7 +50,6 @@ func (r *Repo) GetAll(ctx context.Context, userID int64, limit, offset int, sear
 		return nil, 0, err
 	}
 
-	// Получение данных
 	query := `
 		SELECT id, user_id, name, created_at, updated_at
 		FROM categories

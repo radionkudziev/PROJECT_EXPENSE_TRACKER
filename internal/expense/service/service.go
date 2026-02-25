@@ -17,7 +17,7 @@ const (
 
 type Service struct {
 	db           *pgxpool.Pool
-	logger       *log.Logger // используем *logs.Logger
+	logger       *log.Logger
 	expenseRepo  *expense.Repo
 	userRepo     *user.Repo
 	categoryRepo *category.Repo

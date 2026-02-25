@@ -33,21 +33,17 @@ func main() {
 
 	router := echo.New()
 
-	// Публичные маршруты
 	auth := router.Group("/api/v1/auth")
 	auth.POST("/register", authHandler.Register)
 	auth.POST("/login", authHandler.Login)
 
-	// Защищенные маршруты
 	api := router.Group("/api/v1", middleware.AuthMiddleware)
 
-	// Categories
 	api.POST("/categories", svc.CreateCategory)
 	api.GET("/categories", svc.GetCategories)
 	api.PATCH("/categories/:id", svc.UpdateCategory)
 	api.DELETE("/categories/:id", svc.DeleteCategory)
 
-	// Expenses
 	api.POST("/expenses", svc.CreateExpense)
 	api.GET("/expenses", svc.GetExpenses)
 	api.GET("/expenses/:id", svc.GetExpenseByID)
