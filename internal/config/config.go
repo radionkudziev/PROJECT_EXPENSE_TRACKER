@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-	"search-job/pkg/postgres"
+	"search-job/internal/pkg/postgres"
 	"strconv"
 
 	"github.com/spf13/viper"
@@ -57,7 +57,7 @@ func NewConfig() (*Config, error) {
 
 func (cfg *Config) GetWebPort() string {
 	if cfg == nil || cfg.Web == nil {
-		return ""
+		return ":8585"
 	}
 	return ":" + strconv.Itoa(int(cfg.Web.Port))
 }
