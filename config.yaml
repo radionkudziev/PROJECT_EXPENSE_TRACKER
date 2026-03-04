@@ -8,5 +8,10 @@ server:
         port: 5432
         database: "db04"
         sllmode: "disable"
+external_api:
+    currency_url: "https://api.exchangerate-api.com/v4/latest/"
+    timeout: 5s
+    api_key: ""
 
-
+jwt:
+     secret: "your-super-secret-key-change-this-12345"

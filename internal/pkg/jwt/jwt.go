@@ -9,6 +9,10 @@ import (
 
 var secretKey = []byte("your-secret-key-change-this-in-production")
 
+func Init(secret string) {
+	secretKey = []byte(secret)
+}
+
 type Claims struct {
 	UserID int64 `json:"user_id"`
 	jwt.RegisteredClaims
