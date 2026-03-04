@@ -3,11 +3,11 @@ package service
 import (
 	"search-job/internal/category"
 	"search-job/internal/expense"
+	"search-job/internal/pkg/exchangerate"
 	"search-job/internal/user"
 
-	"github.com/labstack/gommon/log"
-
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/labstack/gommon/log"
 )
 
 const (
@@ -16,17 +16,19 @@ const (
 )
 
 type Service struct {
-	db           *pgxpool.Pool
-	logger       *log.Logger
-	expenseRepo  *expense.Repo
-	userRepo     *user.Repo
-	categoryRepo *category.Repo
+	db             *pgxpool.Pool
+	logger         *log.Logger
+	expenseRepo    *expense.Repo
+	userRepo       *user.Repo
+	categoryRepo   *category.Repo
+	exchangeClient *exchangerate.Client
 }
 
-func NewService(db *pgxpool.Pool, logger *log.Logger) *Service {
+func NewService(db *pgxpool.Pool, logger *log.Logger, exchangeClient *exchangerate.Client) *Service {
 	svc := &Service{
-		db:     db,
-		logger: logger,
+		db:             db,
+		logger:         logger,
+		exchangeClient: exchangeClient,
 	}
 	svc.initRepositories()
 	return svc

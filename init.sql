@@ -4,8 +4,10 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS base_currency VARCHAR(3) NOT NULL DEFAULT 'RUB';
 
 -- Таблица категорий
 CREATE TABLE IF NOT EXISTS categories (
@@ -31,6 +33,8 @@ CREATE TABLE IF NOT EXISTS expenses (
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     deleted_at TIMESTAMPTZ
 );
+
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS amount_base DECIMAL(10,2);
 
 -- Индексы
 CREATE INDEX idx_expenses_user_id ON expenses(user_id);

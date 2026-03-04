@@ -7,6 +7,7 @@ type Expense struct {
 	UserID     int64     `json:"user_id" db:"user_id"`
 	CategoryID *int64    `json:"category_id,omitempty" db:"category_id"`
 	Amount     float64   `json:"amount" db:"amount"`
+	AmountBase *float64  `json:"amount_base,omitempty" db:"amount_base"`
 	Currency   string    `json:"currency" db:"currency"`
 	OccurredAt time.Time `json:"occurred_at" db:"occurred_at"`
 	Comment    *string   `json:"comment,omitempty" db:"comment"`

@@ -223,3 +223,71 @@ func (r *Repo) Delete(ctx context.Context, id, userID int64) error {
 
 	return nil
 }
+
+func (r *Repo) Restore(ctx context.Context, id, userID int64) error {
+	query := `UPDATE expenses SET deleted_at = NULL, updated_at = NOW() WHERE id = $1 AND user_id = $2 AND deleted_at IS NOT NULL`
+	result, err := r.db.Exec(ctx, query, id, userID)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+type CategorySummary struct {
+	CategoryID   *int64  `json:"category_id"`
+	CategoryName *string `json:"category_name"`
+	TotalAmount  float64 `json:"total_amount"`
+	Count        int     `json:"count"`
+}
+
+func (r *Repo) GetSummaryByCategories(ctx context.Context, userID int64, from, to *time.Time) ([]CategorySummary, error) {
+	args := []interface{}{userID}
+	argPos := 2
+	where := "e.user_id = $1 AND e.deleted_at IS NULL"
+	if from != nil {
+		where += fmt.Sprintf(" AND e.occurred_at >= $%d", argPos)
+		args = append(args, *from)
+		argPos++
+	}
+	if to != nil {
+		where += fmt.Sprintf(" AND e.occurred_at <= $%d", argPos)
+		args = append(args, *to)
+		argPos++
+	}
+
+	query := fmt.Sprintf(`
+        SELECT
+            e.category_id,
+            c.name as category_name,
+            COALESCE(SUM(e.amount_base), SUM(e.amount)) as total_amount,
+            COUNT(*) as count
+        FROM expenses e
+        LEFT JOIN categories c ON e.category_id = c.id AND c.deleted_at IS NULL
+        WHERE %s
+        GROUP BY e.category_id, c.name
+    `, where)
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var summaries []CategorySummary
+	for rows.Next() {
+		var s CategorySummary
+		var categoryID *int64
+		var categoryName *string
+		err := rows.Scan(&categoryID, &categoryName, &s.TotalAmount, &s.Count)
+		if err != nil {
+			return nil, err
+		}
+		s.CategoryID = categoryID
+		s.CategoryName = categoryName
+		summaries = append(summaries, s)
+	}
+	return summaries, rows.Err()
+}

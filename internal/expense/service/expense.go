@@ -1,7 +1,11 @@
 package service
 
 import (
+	"context"
+	"database/sql"
+	"fmt"
 	"net/http"
+
 	"search-job/internal/expense"
 	"search-job/internal/middleware"
 	"search-job/internal/models"
@@ -14,9 +18,7 @@ import (
 func (s *Service) CreateExpense(c echo.Context) error {
 	userID := middleware.GetUserID(c)
 	if userID == 0 {
-		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error": "unauthorized",
-		})
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 	}
 
 	var req struct {
@@ -36,10 +38,18 @@ func (s *Service) CreateExpense(c echo.Context) error {
 		return c.JSON(s.NewError(InvalidParams))
 	}
 
+	// Конвертация
+	amountBase, err := s.convertAmount(c.Request().Context(), userID, req.Amount, req.Currency)
+	if err != nil {
+		s.logger.Errorf("conversion failed: %v", err)
+		return c.JSON(http.StatusBadGateway, map[string]string{"error": "currency conversion service unavailable"})
+	}
+
 	expense := &models.Expense{
 		UserID:     userID,
 		CategoryID: req.CategoryID,
 		Amount:     req.Amount,
+		AmountBase: amountBase,
 		Currency:   req.Currency,
 		OccurredAt: occurredAt,
 	}
@@ -229,4 +239,82 @@ func (s *Service) DeleteExpense(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{
 		"status": "success",
 	})
+}
+
+func (s *Service) convertAmount(ctx context.Context, userID int64, amount float64, fromCurrency string) (*float64, error) {
+	// Получаем базовую валюту пользователя
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if fromCurrency == user.BaseCurrency {
+		return &amount, nil
+	}
+	// Вызываем внешний API
+	rate, err := s.exchangeClient.GetRate(fromCurrency, user.BaseCurrency)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get exchange rate: %w", err)
+	}
+	converted := amount * rate
+	return &converted, nil
+}
+
+func (s *Service) RestoreExpense(c echo.Context) error {
+	userID := middleware.GetUserID(c)
+	if userID == 0 {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+	}
+
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return c.JSON(s.NewError(InvalidParams))
+	}
+
+	if err := s.expenseRepo.Restore(c.Request().Context(), id, userID); err != nil {
+		if err == sql.ErrNoRows {
+			return c.JSON(http.StatusNotFound, map[string]string{"error": "expense not found or not deleted"})
+		}
+		s.logger.Error(err)
+		return c.JSON(s.NewError(InternalServerError))
+	}
+
+	// Получаем восстановленный расход
+	expense, err := s.expenseRepo.GetByID(c.Request().Context(), id, userID)
+	if err != nil {
+		s.logger.Error(err)
+		return c.JSON(s.NewError(InternalServerError))
+	}
+
+	return c.JSON(http.StatusOK, expense)
+}
+
+func (s *Service) GetSummaryByCategories(c echo.Context) error {
+	userID := middleware.GetUserID(c)
+	if userID == 0 {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+	}
+
+	var from, to *time.Time
+	if fromStr := c.QueryParam("from"); fromStr != "" {
+		t, err := time.Parse(time.RFC3339, fromStr)
+		if err != nil {
+			return c.JSON(s.NewError(InvalidParams))
+		}
+		from = &t
+	}
+	if toStr := c.QueryParam("to"); toStr != "" {
+		t, err := time.Parse(time.RFC3339, toStr)
+		if err != nil {
+			return c.JSON(s.NewError(InvalidParams))
+		}
+		to = &t
+	}
+
+	summaries, err := s.expenseRepo.GetSummaryByCategories(c.Request().Context(), userID, from, to)
+	if err != nil {
+		s.logger.Error(err)
+		return c.JSON(s.NewError(InternalServerError))
+	}
+
+	return c.JSON(http.StatusOK, summaries)
 }
